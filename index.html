@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gestor de Casa PWA</title>
+    <title>Gestor de Casa</title>
+    <!-- O manifest é gerado dinamicamente no script abaixo -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 1rem); }
         .hidden { display: none !important; }
-        /* Transições suaves */
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
@@ -23,7 +23,7 @@
                 <i data-lucide="home" class="w-6 h-6 mr-2 text-blue-400"></i>
                 Gestor de Casa
             </h1>
-            <p class="text-slate-400 text-sm mt-1">Dados seguros localmente</p>
+            <p class="text-slate-400 text-sm mt-1" id="install-hint">Dados seguros no seu dispositivo</p>
         </div>
     </header>
 
@@ -78,25 +78,24 @@
         <div id="tab-catalog" class="hidden fade-in">
             <div class="mb-4">
                <h2 class="text-lg font-bold text-slate-800">Catálogo de Manutenção</h2>
-               <p class="text-sm text-slate-500">Adicione apenas o que existe na sua casa. Sugestões baseadas em normas técnicas.</p>
+               <p class="text-sm text-slate-500">Adicione as tarefas para as acompanhar. Sugestões baseadas em normas técnicas.</p>
             </div>
             <div id="catalog-content"></div>
         </div>
 
         <!-- SETTINGS TAB -->
         <div id="tab-settings" class="hidden fade-in">
-            <!-- SEÇÃO DE BACKUP -->
             <div class="bg-white border border-slate-200 rounded-xl p-4 mb-6 shadow-sm">
                 <h3 class="font-bold text-slate-800 mb-1 flex items-center">
                     <i data-lucide="database" class="w-5 h-5 mr-2 text-slate-500"></i>
                     Sistema & Backup
                 </h3>
-                <p class="text-xs text-slate-500 mb-4">Os dados são guardados no seu dispositivo de forma segura (IndexedDB).</p>
+                <p class="text-xs text-slate-500 mb-4">Mantenha os seus dados seguros gerando um backup.</p>
                 
                 <div class="grid grid-cols-2 gap-3">
                     <button onclick="handleExportBackup()" class="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 p-3 rounded-lg transition-colors border border-blue-100">
                         <i data-lucide="download" class="w-6 h-6 mb-1"></i>
-                        <span class="text-sm font-medium">Exportar Backup</span>
+                        <span class="text-sm font-medium">Exportar</span>
                     </button>
                     
                     <button onclick="document.getElementById('file-import').click()" class="flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-700 p-3 rounded-lg transition-colors border border-slate-200">
@@ -140,7 +139,7 @@
         </div>
     </nav>
 
-    <!-- Modal Form -->
+    <!-- Modal Form (Agora com Data) -->
     <div id="modal-form" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end md:items-center justify-center z-50 p-4">
         <div class="bg-white w-full max-w-md rounded-2xl md:rounded-xl shadow-2xl overflow-hidden fade-in">
             <div class="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50">
@@ -153,8 +152,8 @@
             <form onsubmit="saveTask(event)" class="p-5 space-y-4">
                 <input type="hidden" id="form-id">
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Nome do Item</label>
-                    <input type="text" id="form-title" required class="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all shadow-sm" placeholder="Ex: Dar banho ao cão...">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Nome da Tarefa</label>
+                    <input type="text" id="form-title" required class="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 shadow-sm" placeholder="Ex: Limpar piscina...">
                 </div>
                 
                 <div class="grid grid-cols-2 gap-4">
@@ -163,17 +162,22 @@
                         <select id="form-category" class="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 shadow-sm bg-white"></select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">A cada quantos dias?</label>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Frequência (Dias)</label>
                         <input type="number" id="form-frequency" required min="1" class="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 shadow-sm">
                     </div>
                 </div>
-                
-                <div class="text-xs text-slate-500 bg-slate-100 p-3 rounded-lg mt-2 border border-slate-200">
-                    <strong>Dica de frequência:</strong><br/>7 = Semanal | 30 = Mensal<br/>90 = Trimestral | 365 = Anual
+
+                <!-- NOVO CAMPO: Edição da última data -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1 flex justify-between">
+                        Última Execução <span class="text-xs text-slate-400 font-normal">(Opcional)</span>
+                    </label>
+                    <input type="date" id="form-last-done" class="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 shadow-sm text-slate-700">
+                    <p class="text-xs text-slate-500 mt-1">Altere se fez a manutenção noutro dia e esqueceu de registar.</p>
                 </div>
 
-                <button type="submit" id="form-submit-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors mt-6 shadow-md">
-                    Adicionar Item
+                <button type="submit" id="form-submit-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors mt-4 shadow-md">
+                    Guardar
                 </button>
             </form>
         </div>
@@ -181,7 +185,61 @@
 
     <script>
         // ==========================================
-        // DADOS E ESTADO
+        // SINGLE-FILE PWA GENERATOR (Dinâmico)
+        // ==========================================
+        function initPWA() {
+            // Icon SVG em Data URI
+            const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 24 24" fill="none" stroke="%232563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
+            const iconUrl = `data:image/svg+xml;utf8,${iconSvg}`;
+
+            // Manifest Dinâmico
+            const manifest = {
+                name: "Gestor de Casa",
+                short_name: "Casa PWA",
+                description: "App de manutenção residencial com armazenamento local e offline.",
+                start_url: location.href,
+                display: "standalone",
+                background_color: "#f8fafc",
+                theme_color: "#0f172a",
+                icons: [
+                    { src: iconUrl, sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }
+                ]
+            };
+            
+            const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+            const manifestUrl = URL.createObjectURL(manifestBlob);
+            
+            const linkManifest = document.createElement('link');
+            linkManifest.rel = 'manifest';
+            linkManifest.href = manifestUrl;
+            document.head.appendChild(linkManifest);
+
+            // Theme Color Meta
+            const metaTheme = document.createElement('meta');
+            metaTheme.name = 'theme-color';
+            metaTheme.content = '#0f172a';
+            document.head.appendChild(metaTheme);
+
+            // Service Worker Dinâmico (Permite funcionar offline instalando o PWA)
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    self.addEventListener('install', (e) => { self.skipWaiting(); });
+                    self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
+                    self.addEventListener('fetch', (e) => {
+                        e.respondWith(fetch(e.request).catch(() => new Response('Offline - App funciona via IndexedDB')));
+                    });
+                `;
+                const swBlob = new Blob([swCode], {type: 'application/javascript'});
+                const swUrl = URL.createObjectURL(swBlob);
+                navigator.serviceWorker.register(swUrl).then(() => {
+                    console.log('Service Worker Dinâmico Registado! (PWA Pronto)');
+                }).catch(err => console.error('Erro no SW:', err));
+            }
+        }
+        initPWA(); // Inicia logo
+
+        // ==========================================
+        // DADOS E ESTADO DA APLICAÇÃO
         // ==========================================
         const MASTER_TASK_LIST = [
             { id: 'h1', title: 'Limpar Caixa D\'água', category: 'Hidráulica', frequencyDays: 180 },
@@ -197,29 +255,18 @@
             { id: 'e4', title: 'Testar Luzes de Emergência e No-breaks', category: 'Elétrica', frequencyDays: 90 },
             { id: 'ac1', title: 'Limpar Filtros Ar Condicionado', category: 'Climatização', frequencyDays: 30 },
             { id: 'ac2', title: 'Manutenção Preventiva Ar Condicionado', category: 'Climatização', frequencyDays: 365 },
-            { id: 'ac3', title: 'Desobstruir Drenos do Ar Condicionado', category: 'Climatização', frequencyDays: 180 },
             { id: 'p1', title: 'Tratamento Químico (Cloro/pH)', category: 'Piscina', frequencyDays: 7 },
             { id: 'p2', title: 'Retrolavagem do Filtro', category: 'Piscina', frequencyDays: 30 },
             { id: 'p3', title: 'Trocar Areia do Filtro Central', category: 'Piscina', frequencyDays: 730 },
-            { id: 'p4', title: 'Inspecionar Rejuntes Submersos', category: 'Piscina', frequencyDays: 180 },
             { id: 's1', title: 'Monitorizar Geração App Solar', category: 'Solar', frequencyDays: 30 },
-            { id: 's2', title: 'Lavar Painéis Solares (Água/Sabão)', category: 'Solar', frequencyDays: 180 },
-            { id: 's3', title: 'Revisão Técnica Inversor / String Box', category: 'Solar', frequencyDays: 365 },
-            { id: 's4', title: 'Remover Ninhos sob os Painéis', category: 'Solar', frequencyDays: 180 },
-            { id: 'st1', title: 'Lubrificar Dobradiças e Fechaduras', category: 'Estrutura', frequencyDays: 180 },
-            { id: 'st2', title: 'Desentupir Drenos dos Trilhos de Janelas', category: 'Estrutura', frequencyDays: 90 },
-            { id: 'st3', title: 'Inspecionar Telhas Trincadas/Deslocadas', category: 'Estrutura', frequencyDays: 365 },
-            { id: 'st4', title: 'Renovar Silicone (Pias e Box)', category: 'Estrutura', frequencyDays: 365 },
-            { id: 'st5', title: 'Dedetização Geral (Cupins/Pragas)', category: 'Estrutura', frequencyDays: 365 },
-            { id: 'st6', title: 'Envernizar Madeiras Externas / Decks', category: 'Estrutura', frequencyDays: 365 },
-            { id: 'j1', title: 'Jardim: Rega e Limpeza Básica', category: 'Jardim', frequencyDays: 7 },
-            { id: 'j2', title: 'Jardim: Poda Técnica e Adubação', category: 'Jardim', frequencyDays: 90 },
-            { id: 'j3', title: 'Limpar Grelhas da Churrasqueira', category: 'Áreas Externas', frequencyDays: 15 },
-            { id: 'j4', title: 'Limpar Chaminé / Duto da Churrasqueira', category: 'Áreas Externas', frequencyDays: 365 },
-            { id: 'g1', title: 'Limpar Filtro Máquina de Lavar Roupa', category: 'Eletrodomésticos', frequencyDays: 30 },
-            { id: 'g2', title: 'Limpar Filtros Coifa / Exaustor', category: 'Eletrodomésticos', frequencyDays: 30 },
-            { id: 'g3', title: 'Limpar Bobinas Traseiras da Geladeira', category: 'Eletrodomésticos', frequencyDays: 180 },
-            { id: 'g4', title: 'Limpar Duto Secadora de Roupas', category: 'Eletrodomésticos', frequencyDays: 180 },
+            { id: 's2', title: 'Lavar Painéis Solares', category: 'Solar', frequencyDays: 180 },
+            { id: 's3', title: 'Revisão Técnica Inversor', category: 'Solar', frequencyDays: 365 },
+            { id: 'st1', title: 'Lubrificar Dobradiças', category: 'Estrutura', frequencyDays: 180 },
+            { id: 'st3', title: 'Inspecionar Telhas', category: 'Estrutura', frequencyDays: 365 },
+            { id: 'st5', title: 'Dedetização Geral', category: 'Estrutura', frequencyDays: 365 },
+            { id: 'j1', title: 'Jardim: Rega e Limpeza', category: 'Jardim', frequencyDays: 7 },
+            { id: 'j3', title: 'Limpar Churrasqueira', category: 'Áreas Externas', frequencyDays: 15 },
+            { id: 'g1', title: 'Limpar Filtro Máquina de Lavar', category: 'Eletrodomésticos', frequencyDays: 30 },
         ];
 
         const CATEGORIES = [...new Set(MASTER_TASK_LIST.map(t => t.category)), 'Outros'];
@@ -227,7 +274,7 @@
         let activeTab = 'dashboard';
 
         // ==========================================
-        // INDEXED DB
+        // INDEXED DB (PERSISTÊNCIA)
         // ==========================================
         const DB_NAME = 'GestorCasaDB';
         const STORE_NAME = 'tasks';
@@ -240,9 +287,7 @@
                 request.onsuccess = () => resolve(request.result);
                 request.onupgradeneeded = (e) => {
                     const db = e.target.result;
-                    if (!db.objectStoreNames.contains(STORE_NAME)) {
-                        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-                    }
+                    if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME, { keyPath: 'id' });
                 };
             });
         }
@@ -263,15 +308,16 @@
             return new Promise((resolve, reject) => {
                 const tx = db.transaction(STORE_NAME, 'readwrite');
                 const store = tx.objectStore(STORE_NAME);
-                store.clear();
-                tasks.forEach(task => store.put(task));
+                store.clear().onsuccess = () => {
+                    tasks.forEach(task => store.put(task));
+                };
                 tx.oncomplete = () => resolve();
                 tx.onerror = () => reject(tx.error);
             });
         }
 
         // ==========================================
-        // LÓGICA DE NEGÓCIO
+        // LÓGICA DE DATAS (O SEGREDO DA APP)
         // ==========================================
         function calculateNextDue(lastDone, frequencyDays) {
             if (!lastDone) return new Date();
@@ -285,8 +331,7 @@
             today.setHours(0, 0, 0, 0);
             const dueDate = new Date(nextDue);
             dueDate.setHours(0, 0, 0, 0);
-            const diffTime = dueDate - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
 
             if (diffDays < 0) return { label: 'Atrasado', color: 'text-red-600', bg: 'bg-red-100', priority: 1 };
             if (diffDays <= 7) return { label: 'Em breve', color: 'text-yellow-600', bg: 'bg-yellow-100', priority: 2 };
@@ -311,16 +356,19 @@
         }
 
         // ==========================================
-        // AÇÕES
+        // AÇÕES RÁPIDAS NA LISTA
         // ==========================================
         async function markAsDone(id) {
+            // Regista sempre como o momento exato em que clicou (Hoje)
             tasks = tasks.map(t => t.id === id ? { ...t, lastDone: new Date().toISOString() } : t);
             await saveTasksDB();
             render();
+            // Feedback visual subtil não intrusivo (sem alert que bloqueia ecrã)
+            console.log('Tarefa atualizada para hoje.'); 
         }
 
         async function deleteTask(id) {
-            if(confirm('Tem a certeza que deseja eliminar esta tarefa?')) {
+            if(confirm('Tem a certeza que deseja remover esta tarefa permanentemente da sua lista?')) {
                 tasks = tasks.filter(t => t.id !== id);
                 await saveTasksDB();
                 render();
@@ -328,8 +376,7 @@
         }
 
         async function toggleCatalogTask(id) {
-            const exists = tasks.some(t => t.id === id);
-            if (exists) {
+            if (tasks.some(t => t.id === id)) {
                 tasks = tasks.filter(t => t.id !== id);
             } else {
                 const masterTask = MASTER_TASK_LIST.find(t => t.id === id);
@@ -340,24 +387,27 @@
         }
 
         // ==========================================
-        // RENDERIZAÇÃO DA INTERFACE
+        // UI & RENDERIZAÇÃO
         // ==========================================
         function switchTab(tabId) {
             activeTab = tabId;
             ['dashboard', 'list', 'catalog', 'settings'].forEach(t => {
                 document.getElementById(`tab-${t}`).classList.add('hidden');
-                const navBtn = document.getElementById(`nav-${t}`);
-                navBtn.classList.remove('text-blue-600');
-                navBtn.classList.add('text-slate-400');
+                document.getElementById(`nav-${t}`).classList.remove('text-blue-600');
+                document.getElementById(`nav-${t}`).classList.add('text-slate-400');
             });
             document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-            const activeNav = document.getElementById(`nav-${tabId}`);
-            activeNav.classList.remove('text-slate-400');
-            activeNav.classList.add('text-blue-600');
+            document.getElementById(`nav-${tabId}`).classList.add('text-blue-600');
             render();
         }
 
         function createCardHTML(task, showControls = false) {
+            // Formatar data de last done se existir
+            let lastDoneStr = 'Nunca efetuada';
+            if (task.lastDone) {
+                lastDoneStr = new Date(task.lastDone).toLocaleDateString('pt-PT');
+            }
+
             return `
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-3 transition-all hover:shadow-md">
                 <div class="flex justify-between items-start mb-2">
@@ -367,29 +417,29 @@
                     </div>
                     <span class="text-xs px-2 py-1 rounded-full font-medium ${task.status.bg} ${task.status.color}">${task.status.label}</span>
                 </div>
-                <div class="flex items-center text-sm text-slate-600 mb-4 mt-3">
-                    <i data-lucide="clock" class="w-4 h-4 mr-1"></i>
-                    <span>Próxima: ${task.nextDue.toLocaleDateString('pt-PT')}</span>
-                    <span class="mx-2 text-slate-300">|</span>
-                    <span>A cada ${task.frequencyDays} dias</span>
+                
+                <div class="grid grid-cols-2 text-sm text-slate-600 mb-4 mt-3 bg-slate-50 p-2 rounded-lg">
+                    <div><span class="block text-xs text-slate-400">Última Execução</span><strong class="text-slate-700">${lastDoneStr}</strong></div>
+                    <div><span class="block text-xs text-slate-400">Próxima Data</span><strong class="${task.status.color}">${task.nextDue.toLocaleDateString('pt-PT')}</strong></div>
                 </div>
-                <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+
+                <div class="flex flex-wrap gap-2 pt-2">
                     <button onclick="markAsDone('${task.id}')" class="flex-1 bg-green-50 hover:bg-green-100 text-green-700 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center transition-colors">
                         <i data-lucide="check-circle-2" class="w-4 h-4 mr-1.5"></i> Feito Hoje
                     </button>
                     <a href="${generateGCalLink(task)}" target="_blank" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center transition-colors text-center">
                         <i data-lucide="calendar-plus" class="w-4 h-4 mr-1.5"></i> Agendar
                     </a>
-                    ${showControls ? `
-                    <div class="flex w-full gap-2 mt-2">
-                        <button onclick="openForm('${task.id}')" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg text-sm flex justify-center items-center">
-                            <i data-lucide="edit-2" class="w-4 h-4 mr-1"></i> Editar
-                        </button>
-                        <button onclick="deleteTask('${task.id}')" class="flex-1 bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-lg text-sm flex justify-center items-center">
-                            <i data-lucide="trash-2" class="w-4 h-4 mr-1"></i> Eliminar
-                        </button>
-                    </div>` : ''}
                 </div>
+                ${showControls ? `
+                <div class="flex w-full gap-2 mt-3 pt-3 border-t border-slate-100">
+                    <button onclick="openForm('${task.id}')" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg text-sm flex justify-center items-center font-medium">
+                        <i data-lucide="edit-2" class="w-4 h-4 mr-1"></i> Editar Datas/Item
+                    </button>
+                    <button onclick="deleteTask('${task.id}')" class="flex-1 bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-lg text-sm flex justify-center items-center font-medium">
+                        <i data-lucide="trash-2" class="w-4 h-4 mr-1"></i> Eliminar
+                    </button>
+                </div>` : ''}
             </div>`;
         }
 
@@ -401,49 +451,42 @@
             // Render Dashboard
             document.getElementById('stats-overdue').innerText = overdue;
             document.getElementById('stats-due').innerText = dueSoon;
+            const dashContent = document.getElementById('dashboard-content');
             const urgentTasks = enrichedTasks.filter(t => t.status.priority <= 2);
             
-            const dashContent = document.getElementById('dashboard-content');
-            const btnGotoCatalog = document.getElementById('btn-goto-catalog');
-            
             if (tasks.length === 0) {
-                btnGotoCatalog.classList.remove('hidden');
-                dashContent.innerHTML = `
-                    <div class="text-center p-8 bg-white rounded-xl border border-dashed border-slate-300">
+                document.getElementById('btn-goto-catalog').classList.remove('hidden');
+                dashContent.innerHTML = `<div class="text-center p-8 bg-white rounded-xl border border-dashed border-slate-300">
                         <i data-lucide="library" class="w-12 h-12 text-blue-300 mx-auto mb-3"></i>
-                        <h3 class="font-bold text-slate-700 mb-1">A sua lista está vazia</h3>
-                        <p class="text-sm text-slate-500 mb-4">Aceda ao catálogo para adicionar os itens que existem na sua casa.</p>
+                        <h3 class="font-bold text-slate-700 mb-1">Lista Vazia</h3>
+                        <p class="text-sm text-slate-500 mb-4">Aceda ao catálogo para adicionar tarefas.</p>
                         <button onclick="switchTab('catalog')" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium text-sm">Explorar Catálogo</button>
                     </div>`;
             } else if (urgentTasks.length === 0) {
-                btnGotoCatalog.classList.add('hidden');
-                dashContent.innerHTML = `
-                    <div class="text-center p-8 bg-white rounded-xl border border-dashed border-slate-300">
+                document.getElementById('btn-goto-catalog').classList.add('hidden');
+                dashContent.innerHTML = `<div class="text-center p-8 bg-white rounded-xl border border-dashed border-slate-300">
                         <i data-lucide="check-circle-2" class="w-12 h-12 text-green-400 mx-auto mb-2"></i>
-                        <p class="text-slate-500">Tudo em dia! Relaxe e aproveite a casa.</p>
+                        <p class="text-slate-500">Tudo em dia! Nenhuma tarefa urgente.</p>
                     </div>`;
             } else {
-                btnGotoCatalog.classList.add('hidden');
-                dashContent.innerHTML = urgentTasks.map(t => createCardHTML(t)).join('');
+                document.getElementById('btn-goto-catalog').classList.add('hidden');
+                dashContent.innerHTML = urgentTasks.map(t => createCardHTML(t, false)).join('');
             }
 
-            // Render List
+            // Render List (Agora os botões aparecem aqui também!)
             document.getElementById('list-count').innerText = `(${tasks.length})`;
             document.getElementById('btn-schedule-all-container').style.display = tasks.length > 0 ? 'block' : 'none';
-            const listContent = document.getElementById('list-content');
-            if (tasks.length === 0) {
-                listContent.innerHTML = '<p class="text-slate-500 text-sm text-center mt-10">Não tem tarefas. Vá ao Catálogo adicionar algumas!</p>';
-            } else {
-                listContent.innerHTML = enrichedTasks.map(t => createCardHTML(t)).join('');
-            }
+            document.getElementById('list-content').innerHTML = tasks.length === 0 
+                ? '<p class="text-slate-500 text-sm text-center mt-10">Não tem tarefas adicionadas.</p>'
+                : enrichedTasks.map(t => createCardHTML(t, true)).join('');
 
             // Render Settings
             document.getElementById('settings-content').innerHTML = enrichedTasks.map(t => createCardHTML(t, true)).join('');
 
-            // Render Catalog (only if active to save DOM operations)
+            // Render Catalog
             if(activeTab === 'catalog') {
                 let catHTML = '';
-                CATEGORIES.filter(cat => cat !== 'Outros').forEach(cat => {
+                CATEGORIES.filter(c => c !== 'Outros').forEach(cat => {
                     const catTasks = MASTER_TASK_LIST.filter(t => t.category === cat);
                     if(catTasks.length > 0) {
                         catHTML += `<div class="mb-6"><h3 class="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2">${cat}</h3><div class="space-y-2">`;
@@ -470,11 +513,10 @@
         }
 
         // ==========================================
-        // MODAL E FORMULÁRIO
+        // GESTÃO DO MODAL E DATAS
         // ==========================================
         function populateCategories() {
-            const select = document.getElementById('form-category');
-            select.innerHTML = CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('');
+            document.getElementById('form-category').innerHTML = CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('');
         }
 
         function openForm(taskId = null) {
@@ -485,15 +527,26 @@
                 document.getElementById('form-title').value = task.title;
                 document.getElementById('form-category').value = task.category;
                 document.getElementById('form-frequency').value = task.frequencyDays;
-                document.getElementById('modal-title').innerText = 'Editar Detalhes';
-                document.getElementById('form-submit-btn').innerText = 'Guardar Alterações';
+                
+                // Converter data ISO para YYYY-MM-DD exigida pelo input type="date"
+                if (task.lastDone) {
+                    const dateObj = new Date(task.lastDone);
+                    const year = dateObj.getFullYear();
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    document.getElementById('form-last-done').value = `${year}-${month}-${day}`;
+                } else {
+                    document.getElementById('form-last-done').value = '';
+                }
+
+                document.getElementById('modal-title').innerText = 'Editar Detalhes/Data';
             } else {
                 document.getElementById('form-id').value = '';
                 document.getElementById('form-title').value = '';
                 document.getElementById('form-category').value = 'Outros';
                 document.getElementById('form-frequency').value = 30;
+                document.getElementById('form-last-done').value = ''; // Nova tarefa não tem data prévia
                 document.getElementById('modal-title').innerText = 'Criar Item Customizado';
-                document.getElementById('form-submit-btn').innerText = 'Adicionar Item';
             }
             document.getElementById('modal-form').classList.remove('hidden');
         }
@@ -508,11 +561,19 @@
             const title = document.getElementById('form-title').value;
             const category = document.getElementById('form-category').value;
             const frequencyDays = parseInt(document.getElementById('form-frequency').value);
+            
+            // Lógica para capturar a data escolhida e converter para ISO (adicionando horas para evitar bugs de fuso)
+            const dateInput = document.getElementById('form-last-done').value;
+            let lastDone = null;
+            if (dateInput) {
+                // Ao colocar T12:00:00 garantimos que o timezone do utilizador não atira a data para o dia anterior
+                lastDone = new Date(`${dateInput}T12:00:00Z`).toISOString();
+            }
 
             if (id) {
-                tasks = tasks.map(t => t.id === id ? { ...t, title, category, frequencyDays } : t);
+                tasks = tasks.map(t => t.id === id ? { ...t, title, category, frequencyDays, lastDone } : t);
             } else {
-                tasks.push({ id: `custom_${Date.now()}`, title, category, frequencyDays, lastDone: null });
+                tasks.push({ id: `custom_${Date.now()}`, title, category, frequencyDays, lastDone });
             }
             await saveTasksDB();
             closeForm();
@@ -520,7 +581,7 @@
         }
 
         // ==========================================
-        // CALENDÁRIO E BACKUP
+        // EXPORTAÇÃO (CALENDÁRIO E BACKUP)
         // ==========================================
         function handleScheduleAllICS() {
             if (tasks.length === 0) return alert("Adicione tarefas primeiro!");
@@ -546,28 +607,20 @@
             ics += "END:VCALENDAR\r\n";
 
             const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
-            link.href = url;
+            link.href = URL.createObjectURL(blob);
             link.download = 'Manutencao_Casa_Completa.ics';
-            document.body.appendChild(link);
             link.click();
-            document.body.removeChild(link);
         }
 
         function handleExportBackup() {
-            const data = JSON.stringify(tasks, null, 2);
-            const blob = new Blob([data], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
+            const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: 'application/json' });
             const now = new Date();
-            const pad = (n) => n.toString().padStart(2, '0');
-            const filename = `GestorCasa_Backup_${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}h${pad(now.getMinutes())}m.json`;
+            const pad = (n) => String(n).padStart(2, '0');
             const link = document.createElement('a');
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
+            link.href = URL.createObjectURL(blob);
+            link.download = `GestorCasa_Backup_${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}.json`;
             link.click();
-            document.body.removeChild(link);
         }
 
         function handleImportBackup(event) {
@@ -581,39 +634,29 @@
                         tasks = importedTasks;
                         await saveTasksDB();
                         render();
-                        alert("Backup restaurado com sucesso!");
-                    } else {
-                        alert("Ficheiro inválido.");
-                    }
-                } catch (error) {
-                    alert("Erro ao ler o ficheiro de backup.");
-                }
+                        alert("Backup restaurado!");
+                    } else alert("Ficheiro inválido.");
+                } catch (error) { alert("Erro ao ler o ficheiro."); }
             };
             reader.readAsText(file);
             event.target.value = '';
         }
 
         // ==========================================
-        // INICIALIZAÇÃO
+        // ARRANQUE DA APLICAÇÃO
         // ==========================================
         window.onload = async () => {
             try {
                 const savedTasks = await loadTasksDB();
-                if (savedTasks && savedTasks.length > 0) {
-                    tasks = savedTasks;
-                } else {
-                    // Padrão Inicial
-                    tasks = [
-                        { ...MASTER_TASK_LIST[0], lastDone: null },
-                        { ...MASTER_TASK_LIST[1], lastDone: null },
-                        { ...MASTER_TASK_LIST[7], lastDone: null }
-                    ];
-                    await saveTasksDB();
-                }
-            } catch (err) {
-                console.error("Erro no IndexedDB:", err);
-            }
+                if (savedTasks && savedTasks.length > 0) tasks = savedTasks;
+                else await saveTasksDB(); // Fica vazio inicialmente para forçar a usar o catálogo
+            } catch (err) { console.error("Erro DB:", err); }
             render();
+            
+            // Sugerir instalação no iOS/Android se suportado
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                document.getElementById('install-hint').innerText = "Instalado como App Nativa";
+            }
         };
     </script>
 </body>
