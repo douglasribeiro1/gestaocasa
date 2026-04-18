@@ -1,0 +1,657 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { CalendarPlus, CheckCircle2, Clock, Plus, Settings, Home, ListTodo, AlertCircle, Edit2, Trash2, X, Library, PlusCircle, Download, Upload, CalendarDays, Database } from 'lucide-react';
+
+// O GRANDE CATÁLOGO DE MANUTENÇÃO
+const MASTER_TASK_LIST = [
+  // Hidráulica
+  { id: 'h1', title: 'Limpar Caixa D\'água', category: 'Hidráulica', frequencyDays: 180 },
+  { id: 'h2', title: 'Limpar Caixa de Gordura', category: 'Hidráulica', frequencyDays: 90 },
+  { id: 'h3', title: 'Limpar Calhas e Rufos', category: 'Hidráulica', frequencyDays: 180 },
+  { id: 'h4', title: 'Limpar Arejadores de Torneiras', category: 'Hidráulica', frequencyDays: 90 },
+  { id: 'h5', title: 'Limpar Ralos e Sifões', category: 'Hidráulica', frequencyDays: 90 },
+  { id: 'h6', title: 'Teste de Vazamentos (Hidrômetro)', category: 'Hidráulica', frequencyDays: 90 },
+  { id: 'h7', title: 'Limpar Válvula de Retenção (Esgoto)', category: 'Hidráulica', frequencyDays: 180 },
+  
+  // Elétrica
+  { id: 'e1', title: 'Teste do botão DR (Quadro)', category: 'Elétrica', frequencyDays: 30 },
+  { id: 'e2', title: 'Reaperto Geral Quadro Elétrico', category: 'Elétrica', frequencyDays: 365 },
+  { id: 'e3', title: 'Limpar Crivos do Chuveiro', category: 'Elétrica', frequencyDays: 30 },
+  { id: 'e4', title: 'Testar Luzes de Emergência e No-breaks', category: 'Elétrica', frequencyDays: 90 },
+  
+  // Climatização
+  { id: 'ac1', title: 'Limpar Filtros Ar Condicionado', category: 'Climatização', frequencyDays: 30 },
+  { id: 'ac2', title: 'Manutenção Preventiva Ar Condicionado', category: 'Climatização', frequencyDays: 365 },
+  { id: 'ac3', title: 'Desobstruir Drenos do Ar Condicionado', category: 'Climatização', frequencyDays: 180 },
+  
+  // Piscina
+  { id: 'p1', title: 'Tratamento Químico (Cloro/pH)', category: 'Piscina', frequencyDays: 7 },
+  { id: 'p2', title: 'Retrolavagem do Filtro', category: 'Piscina', frequencyDays: 30 },
+  { id: 'p3', title: 'Trocar Areia do Filtro Central', category: 'Piscina', frequencyDays: 730 },
+  { id: 'p4', title: 'Inspecionar Rejuntes Submersos', category: 'Piscina', frequencyDays: 180 },
+  
+  // Solar
+  { id: 's1', title: 'Monitorizar Geração App Solar', category: 'Solar', frequencyDays: 30 },
+  { id: 's2', title: 'Lavar Painéis Solares (Água/Sabão Neutro)', category: 'Solar', frequencyDays: 180 },
+  { id: 's3', title: 'Revisão Técnica Inversor / String Box', category: 'Solar', frequencyDays: 365 },
+  { id: 's4', title: 'Remover Ninhos sob os Painéis', category: 'Solar', frequencyDays: 180 },
+  
+  // Estrutura & Esquadrias
+  { id: 'st1', title: 'Lubrificar Dobradiças e Fechaduras', category: 'Estrutura', frequencyDays: 180 },
+  { id: 'st2', title: 'Desentupir Drenos dos Trilhos de Janelas', category: 'Estrutura', frequencyDays: 90 },
+  { id: 'st3', title: 'Inspecionar Telhas Trincadas/Deslocadas', category: 'Estrutura', frequencyDays: 365 },
+  { id: 'st4', title: 'Renovar Silicone (Pias e Box)', category: 'Estrutura', frequencyDays: 365 },
+  { id: 'st5', title: 'Dedetização Geral (Cupins/Pragas)', category: 'Estrutura', frequencyDays: 365 },
+  { id: 'st6', title: 'Envernizar Madeiras Externas / Decks', category: 'Estrutura', frequencyDays: 365 },
+  
+  // Jardim e Áreas Externas
+  { id: 'j1', title: 'Jardim: Rega e Limpeza Básica', category: 'Jardim', frequencyDays: 7 },
+  { id: 'j2', title: 'Jardim: Poda Técnica e Adubação', category: 'Jardim', frequencyDays: 90 },
+  { id: 'j3', title: 'Limpar Grelhas da Churrasqueira', category: 'Áreas Externas', frequencyDays: 15 },
+  { id: 'j4', title: 'Limpar Chaminé / Duto da Churrasqueira', category: 'Áreas Externas', frequencyDays: 365 },
+  
+  // Eletrodomésticos
+  { id: 'g1', title: 'Limpar Filtro Máquina de Lavar Roupa', category: 'Eletrodomésticos', frequencyDays: 30 },
+  { id: 'g2', title: 'Limpar Filtros Coifa / Exaustor', category: 'Eletrodomésticos', frequencyDays: 30 },
+  { id: 'g3', title: 'Limpar Bobinas Traseiras da Geladeira', category: 'Eletrodomésticos', frequencyDays: 180 },
+  { id: 'g4', title: 'Limpar Duto Secadora de Roupas', category: 'Eletrodomésticos', frequencyDays: 180 },
+];
+
+const CATEGORIES = [...new Set(MASTER_TASK_LIST.map(t => t.category)), 'Outros'];
+
+// ==========================================
+// UTILITÁRIOS DA BASE DE DADOS (IndexedDB)
+// ==========================================
+const DB_NAME = 'GestorCasaDB';
+const STORE_NAME = 'tasks';
+const DB_VERSION = 1;
+
+const initDB = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+    };
+  });
+};
+
+const loadTasksDB = async () => {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+const saveTasksDB = async (tasks) => {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    store.clear(); // Limpa antigo
+    tasks.forEach(task => store.put(task)); // Insere novo estado
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+};
+
+
+export default function App() {
+  const [tasks, setTasks] = useState([]);
+  const [isDbLoaded, setIsDbLoaded] = useState(false);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const [formData, setFormData] = useState({ title: '', category: 'Outros', frequencyDays: 30 });
+
+  // 1. CARREGAR DADOS DO INDEXEDDB AO INICIAR
+  useEffect(() => {
+    loadTasksDB().then(savedTasks => {
+      if (savedTasks && savedTasks.length > 0) {
+        setTasks(savedTasks);
+      } else {
+        // Tarefas padrão iniciais
+        setTasks([
+          { ...MASTER_TASK_LIST[0], lastDone: null },
+          { ...MASTER_TASK_LIST[1], lastDone: null },
+          { ...MASTER_TASK_LIST[7], lastDone: null },
+        ]);
+      }
+      setIsDbLoaded(true);
+    }).catch(err => {
+      console.error("Erro ao carregar IndexedDB:", err);
+      setIsDbLoaded(true);
+    });
+  }, []);
+
+  // 2. SALVAR NO INDEXEDDB SEMPRE QUE TASKS MUDAR
+  useEffect(() => {
+    if (isDbLoaded) {
+      saveTasksDB(tasks).catch(err => console.error("Erro ao salvar no IndexedDB:", err));
+    }
+  }, [tasks, isDbLoaded]);
+
+  // ==========================================
+  // LÓGICA DE DATAS E STATUS
+  // ==========================================
+  const calculateNextDue = (lastDone, frequencyDays) => {
+    if (!lastDone) return new Date(); 
+    const next = new Date(lastDone);
+    next.setDate(next.getDate() + parseInt(frequencyDays));
+    return next;
+  };
+
+  const getStatus = (nextDue) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(nextDue);
+    dueDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = dueDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return { label: 'Atrasado', color: 'text-red-600', bg: 'bg-red-100', priority: 1 };
+    if (diffDays <= 7) return { label: 'Em breve', color: 'text-yellow-600', bg: 'bg-yellow-100', priority: 2 };
+    return { label: 'Em dia', color: 'text-green-600', bg: 'bg-green-100', priority: 3 };
+  };
+
+  // ==========================================
+  // FUNCIONALIDADES DE CALENDÁRIO (.ics & Web)
+  // ==========================================
+  
+  // Link rápido para a web (1 tarefa)
+  const generateGCalLink = (task) => {
+    const nextDue = calculateNextDue(task.lastDone, task.frequencyDays);
+    const start = nextDue.toISOString().replace(/-|:|\.\d\d\d/g, '');
+    const endObj = new Date(nextDue.getTime() + 60 * 60 * 1000);
+    const end = endObj.toISOString().replace(/-|:|\.\d\d\d/g, '');
+    const text = encodeURIComponent(`Manutenção: ${task.title}`);
+    const details = encodeURIComponent(`Categoria: ${task.category}\nFrequência: a cada ${task.frequencyDays} dias.`);
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}`;
+  };
+
+  // Gerar ficheiro .ICS com repetições para TODAS as tarefas
+  const handleScheduleAllICS = () => {
+    if (tasks.length === 0) return alert("Adicione tarefas primeiro!");
+
+    const formatICSDate = (date) => {
+      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+
+    let ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Gestor de Casa PWA//PT\r\nCALSCALE:GREGORIAN\r\n";
+    
+    tasks.forEach(task => {
+      let start = calculateNextDue(task.lastDone, task.frequencyDays);
+      // Evita agendar o primeiro evento no passado (calendários podem ignorar)
+      if (start < new Date()) {
+         start = new Date();
+      }
+      start.setHours(9, 0, 0, 0); // Define as 09:00 da manhã
+      const end = new Date(start.getTime() + 60 * 60 * 1000); // 10:00 da manhã
+      
+      ics += "BEGIN:VEVENT\r\n";
+      ics += `UID:${task.id}-${Date.now()}@gestordecasa\r\n`;
+      ics += `DTSTAMP:${formatICSDate(new Date())}\r\n`;
+      ics += `DTSTART:${formatICSDate(start)}\r\n`;
+      ics += `DTEND:${formatICSDate(end)}\r\n`;
+      ics += `SUMMARY:🏠 Manutenção: ${task.title}\r\n`;
+      ics += `DESCRIPTION:Categoria: ${task.category}\\nFrequência de ${task.frequencyDays} dias.\\nGerado pelo app Gestor de Casa.\r\n`;
+      ics += `RRULE:FREQ=DAILY;INTERVAL=${task.frequencyDays}\r\n`;
+      
+      // Alarme 1 dia antes
+      ics += "BEGIN:VALARM\r\n";
+      ics += "ACTION:DISPLAY\r\n";
+      ics += `DESCRIPTION:Lembrete de Manutenção Amanhã\r\n`;
+      ics += "TRIGGER:-P1D\r\n";
+      ics += "END:VALARM\r\n";
+
+      ics += "END:VEVENT\r\n";
+    });
+
+    ics += "END:VCALENDAR\r\n";
+
+    // Criar download
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Manutencao_Casa_Completa.ics';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // ==========================================
+  // BACKUP & RESTORE
+  // ==========================================
+  const handleExportBackup = () => {
+    const data = JSON.stringify(tasks, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    // Formatar nome: App_Backup_YYYY-MM-DD_HH-MM.json
+    const now = new Date();
+    const pad = (n) => n.toString().padStart(2, '0');
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+    const timeStr = `${pad(now.getHours())}h${pad(now.getMinutes())}m`;
+    const filename = `GestorCasa_Backup_${dateStr}_${timeStr}.json`;
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImportBackup = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedTasks = JSON.parse(e.target.result);
+        if (Array.isArray(importedTasks)) {
+          setTasks(importedTasks);
+          alert("Backup restaurado com sucesso!");
+        } else {
+          alert("Ficheiro inválido.");
+        }
+      } catch (error) {
+        alert("Erro ao ler o ficheiro de backup.");
+      }
+    };
+    reader.readAsText(file);
+    // Limpa o input para poder importar o mesmo ficheiro de novo se necessário
+    event.target.value = '';
+  };
+
+  // ==========================================
+  // AÇÕES DE TAREFAS
+  // ==========================================
+  const markAsDone = (id) => {
+    setTasks(tasks.map(t => t.id === id ? { ...t, lastDone: new Date().toISOString() } : t));
+  };
+
+  const handleDelete = (id) => {
+    setTasks(tasks.filter(t => t.id !== id));
+  };
+
+  const toggleCatalogTask = (masterTask) => {
+    const exists = tasks.some(t => t.id === masterTask.id);
+    if (exists) {
+      setTasks(tasks.filter(t => t.id !== masterTask.id));
+    } else {
+      setTasks([...tasks, { ...masterTask, lastDone: null }]);
+    }
+  };
+
+  const openForm = (task = null) => {
+    if (task) {
+      setEditingTask(task);
+      setFormData({ title: task.title, category: task.category, frequencyDays: task.frequencyDays });
+    } else {
+      setEditingTask(null);
+      setFormData({ title: '', category: 'Outros', frequencyDays: 30 });
+    }
+    setIsModalOpen(true);
+  };
+
+  const saveTask = (e) => {
+    e.preventDefault();
+    if (editingTask) {
+      setTasks(tasks.map(t => t.id === editingTask.id ? { ...t, ...formData } : t));
+    } else {
+      setTasks([...tasks, { id: `custom_${Date.now()}`, ...formData, lastDone: null }]);
+    }
+    setIsModalOpen(false);
+  };
+
+  // Dados Derivados
+  const enrichedTasks = useMemo(() => {
+    return tasks.map(task => {
+      const nextDue = calculateNextDue(task.lastDone, task.frequencyDays);
+      return { ...task, nextDue, status: getStatus(nextDue) };
+    }).sort((a, b) => a.status.priority - b.status.priority || a.nextDue - b.nextDue);
+  }, [tasks]);
+
+  const dashboardStats = useMemo(() => {
+    const overdue = enrichedTasks.filter(t => t.status.priority === 1).length;
+    const dueSoon = enrichedTasks.filter(t => t.status.priority === 2).length;
+    return { overdue, dueSoon, total: tasks.length };
+  }, [enrichedTasks]);
+
+  // ==========================================
+  // COMPONENTES DE INTERFACE
+  // ==========================================
+  const TaskCard = ({ task, showControls = false }) => (
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-3 transition-all hover:shadow-md">
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <h3 className="font-semibold text-slate-800">{task.title}</h3>
+          <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full mt-1 inline-block">
+            {task.category}
+          </span>
+        </div>
+        <span className={`text-xs px-2 py-1 rounded-full font-medium ${task.status.bg} ${task.status.color}`}>
+          {task.status.label}
+        </span>
+      </div>
+      
+      <div className="flex items-center text-sm text-slate-600 mb-4 mt-3">
+        <Clock className="w-4 h-4 mr-1" />
+        <span>Próxima: {task.nextDue.toLocaleDateString('pt-PT')}</span>
+        <span className="mx-2 text-slate-300">|</span>
+        <span>A cada {task.frequencyDays} dias</span>
+      </div>
+
+      <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+        <button 
+          onClick={() => markAsDone(task.id)}
+          className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center transition-colors"
+        >
+          <CheckCircle2 className="w-4 h-4 mr-1.5" />
+          Feito Hoje
+        </button>
+        <a 
+          href={generateGCalLink(task)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center transition-colors text-center"
+        >
+          <CalendarPlus className="w-4 h-4 mr-1.5" />
+          Agendar Unidade
+        </a>
+        
+        {showControls && (
+          <div className="flex w-full gap-2 mt-2">
+            <button onClick={() => openForm(task)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg text-sm flex justify-center items-center">
+              <Edit2 className="w-4 h-4 mr-1" /> Editar
+            </button>
+            <button onClick={() => handleDelete(task.id)} className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-lg text-sm flex justify-center items-center">
+              <Trash2 className="w-4 h-4 mr-1" /> Eliminar
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (!isDbLoaded) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Database className="animate-pulse w-8 h-8 text-blue-500" /></div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col md:max-w-2xl md:mx-auto md:shadow-xl relative">
+      {/* Header */}
+      <header className="bg-slate-900 text-white p-5 rounded-b-2xl shadow-lg sticky top-0 z-10 flex justify-between items-center">
+        <div>
+          <h1 className="text-xl font-bold flex items-center">
+            <Home className="w-6 h-6 mr-2 text-blue-400" />
+            Gestor de Casa
+          </h1>
+          <p className="text-slate-400 text-sm mt-1">Dados seguros localmente</p>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 p-4 pb-24 overflow-y-auto">
+        
+        {/* DASHBOARD */}
+        {activeTab === 'dashboard' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                <div className="text-red-500 mb-1"><AlertCircle className="w-6 h-6" /></div>
+                <div className="text-2xl font-bold text-red-700">{dashboardStats.overdue}</div>
+                <div className="text-xs text-red-600 font-medium">Atrasadas</div>
+              </div>
+              <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100">
+                <div className="text-yellow-500 mb-1"><Clock className="w-6 h-6" /></div>
+                <div className="text-2xl font-bold text-yellow-700">{dashboardStats.dueSoon}</div>
+                <div className="text-xs text-yellow-600 font-medium">Próximos 7 dias</div>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center mb-3">
+               <h2 className="text-lg font-bold text-slate-800">Atenção Imediata</h2>
+               {tasks.length === 0 && (
+                 <button onClick={() => setActiveTab('catalog')} className="text-sm text-blue-600 font-medium">
+                   Ver Catálogo &rarr;
+                 </button>
+               )}
+            </div>
+
+            {tasks.length === 0 ? (
+              <div className="text-center p-8 bg-white rounded-xl border border-dashed border-slate-300">
+                <Library className="w-12 h-12 text-blue-300 mx-auto mb-3" />
+                <h3 className="font-bold text-slate-700 mb-1">A sua lista está vazia</h3>
+                <p className="text-sm text-slate-500 mb-4">Aceda ao catálogo para adicionar os itens que existem na sua casa.</p>
+                <button onClick={() => setActiveTab('catalog')} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium text-sm">
+                  Explorar Catálogo
+                </button>
+              </div>
+            ) : enrichedTasks.filter(t => t.status.priority <= 2).length === 0 ? (
+              <div className="text-center p-8 bg-white rounded-xl border border-dashed border-slate-300">
+                <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-2" />
+                <p className="text-slate-500">Tudo em dia! Relaxe e aproveite a casa.</p>
+              </div>
+            ) : (
+              enrichedTasks.filter(t => t.status.priority <= 2).map(task => <TaskCard key={task.id} task={task} />)
+            )}
+          </div>
+        )}
+
+        {/* MINHA LISTA */}
+        {activeTab === 'list' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-slate-800">
+                A Minha Rotina <span className="text-sm font-normal text-slate-500 ml-2">({tasks.length})</span>
+              </h2>
+            </div>
+
+            {tasks.length > 0 && (
+              <button 
+                onClick={handleScheduleAllICS}
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white p-3 rounded-xl mb-6 shadow-md flex items-center justify-center transition-colors"
+              >
+                <CalendarDays className="w-5 h-5 mr-2 text-blue-400" />
+                <div className="text-left">
+                  <div className="font-bold">Agendar Tudo no Calendário</div>
+                  <div className="text-xs text-slate-400">Gera prazos, lembretes e repetição</div>
+                </div>
+              </button>
+            )}
+
+            {enrichedTasks.length === 0 && (
+               <p className="text-slate-500 text-sm text-center mt-10">Não tem tarefas. Vá ao Catálogo adicionar algumas!</p>
+            )}
+            {enrichedTasks.map(task => <TaskCard key={task.id} task={task} />)}
+          </div>
+        )}
+
+        {/* CATÁLOGO (SUGESTÕES) */}
+        {activeTab === 'catalog' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="mb-4">
+               <h2 className="text-lg font-bold text-slate-800">Catálogo de Manutenção</h2>
+               <p className="text-sm text-slate-500">Adicione apenas o que existe na sua casa. As sugestões baseiam-se em normas técnicas.</p>
+            </div>
+
+            {CATEGORIES.filter(cat => cat !== 'Outros').map(cat => {
+              const catTasks = MASTER_TASK_LIST.filter(t => t.category === cat);
+              if (catTasks.length === 0) return null;
+
+              return (
+                <div key={cat} className="mb-6">
+                  <h3 className="font-bold text-slate-700 mb-3 border-b border-slate-200 pb-2">{cat}</h3>
+                  <div className="space-y-2">
+                    {catTasks.map(task => {
+                      const isActive = tasks.some(t => t.id === task.id);
+                      return (
+                        <div key={task.id} className="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                          <div className="pr-3">
+                            <div className="font-medium text-slate-800 text-sm">{task.title}</div>
+                            <div className="text-xs text-slate-500 mt-0.5">Sugestão: a cada {task.frequencyDays} dias</div>
+                          </div>
+                          <button 
+                            onClick={() => toggleCatalogTask(task)}
+                            className={`p-2 rounded-full transition-colors flex-shrink-0 ${isActive ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400 hover:bg-blue-100 hover:text-blue-600'}`}
+                          >
+                            {isActive ? <CheckCircle2 className="w-6 h-6" /> : <PlusCircle className="w-6 h-6" />}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* GERIR (CONFIGURAÇÕES E CUSTOMIZAÇÃO) */}
+        {activeTab === 'settings' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            
+            {/* SEÇÃO DE BACKUP */}
+            <div className="bg-white border border-slate-200 rounded-xl p-4 mb-6 shadow-sm">
+              <h3 className="font-bold text-slate-800 mb-1 flex items-center">
+                <Database className="w-5 h-5 mr-2 text-slate-500" />
+                Sistema & Backup
+              </h3>
+              <p className="text-xs text-slate-500 mb-4">Os dados são guardados no seu dispositivo de forma segura (IndexedDB).</p>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={handleExportBackup}
+                  className="flex flex-col items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 p-3 rounded-lg transition-colors border border-blue-100"
+                >
+                  <Download className="w-6 h-6 mb-1" />
+                  <span className="text-sm font-medium">Exportar Backup</span>
+                </button>
+                
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-700 p-3 rounded-lg transition-colors border border-slate-200"
+                >
+                  <Upload className="w-6 h-6 mb-1" />
+                  <span className="text-sm font-medium">Restaurar</span>
+                </button>
+                <input 
+                  type="file" 
+                  accept=".json" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  onChange={handleImportBackup} 
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-slate-800">Gerir Meus Itens</h2>
+              <button onClick={() => openForm()} className="bg-slate-900 hover:bg-slate-800 text-white p-2 rounded-lg flex items-center text-sm font-medium transition-colors shadow-sm">
+                <Plus className="w-4 h-4 mr-1" /> Criar Novo
+              </button>
+            </div>
+            
+            {enrichedTasks.map(task => <TaskCard key={task.id} task={task} showControls={true} />)}
+          </div>
+        )}
+      </main>
+
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 w-full md:max-w-2xl bg-white border-t border-slate-200 pb-safe z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <div className="flex justify-around p-2">
+          <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center p-2 w-16 ${activeTab === 'dashboard' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
+            <Home className="w-6 h-6 mb-1" />
+            <span className="text-[10px] font-medium uppercase tracking-wider">Início</span>
+          </button>
+          <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center p-2 w-16 ${activeTab === 'list' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
+            <ListTodo className="w-6 h-6 mb-1" />
+            <span className="text-[10px] font-medium uppercase tracking-wider">Lista</span>
+          </button>
+          <button onClick={() => setActiveTab('catalog')} className={`flex flex-col items-center p-2 w-16 relative ${activeTab === 'catalog' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
+            <Library className="w-6 h-6 mb-1" />
+            <span className="text-[10px] font-medium uppercase tracking-wider">Catálogo</span>
+          </button>
+          <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center p-2 w-16 ${activeTab === 'settings' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
+            <Settings className="w-6 h-6 mb-1" />
+            <span className="text-[10px] font-medium uppercase tracking-wider">Gerir</span>
+          </button>
+        </div>
+      </nav>
+
+      {/* Modal Add/Edit */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end md:items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl md:rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8">
+            <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50">
+              <h3 className="font-bold text-lg text-slate-800">{editingTask ? 'Editar Detalhes' : 'Criar Item Customizado'}</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 bg-white rounded-full p-1 shadow-sm">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={saveTask} className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Item</label>
+                <input 
+                  type="text" 
+                  required
+                  value={formData.title}
+                  onChange={e => setFormData({...formData, title: e.target.value})}
+                  className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all shadow-sm"
+                  placeholder="Ex: Dar banho ao cão..."
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Categoria</label>
+                  <select 
+                    value={formData.category}
+                    onChange={e => setFormData({...formData, category: e.target.value})}
+                    className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 shadow-sm bg-white"
+                  >
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">A cada quantos dias?</label>
+                  <input 
+                    type="number" 
+                    required
+                    min="1"
+                    value={formData.frequencyDays}
+                    onChange={e => setFormData({...formData, frequencyDays: parseInt(e.target.value)})}
+                    className="w-full border border-slate-300 rounded-lg p-3 outline-none focus:border-blue-500 shadow-sm"
+                  />
+                </div>
+              </div>
+              
+              <div className="text-xs text-slate-500 bg-slate-100 p-3 rounded-lg mt-2 border border-slate-200">
+                <strong>Dica de frequência:</strong><br/>7 = Semanal | 30 = Mensal<br/>90 = Trimestral | 365 = Anual
+              </div>
+
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors mt-6 shadow-md">
+                {editingTask ? 'Guardar Alterações' : 'Adicionar Item'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
